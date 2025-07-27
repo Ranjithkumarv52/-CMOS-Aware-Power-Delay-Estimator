@@ -49,7 +49,7 @@ These equations reflect first-order CMOS models suitable for education and preli
 ## 🖼️ Screenshots
 
 ### Sample Input & Output
-![Terminal Output](<img width="392" height="189" alt="Screenshot 2025-07-27 220401" src="https://github.com/user-attachments/assets/9f6087c1-ab96-40c1-8481-5eb397d0cf4e" />
+![Terminal Output](<img width="392" height="189" alt="Screenshot 2025-07-27 220401" src="https://github.com/user-attachments/assets/69e5eb88-571a-4816-97cb-2d8f813f72a7" />
 )
 
 ---
