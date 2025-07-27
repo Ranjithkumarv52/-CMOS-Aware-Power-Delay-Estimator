@@ -1,207 +1,153 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[codz]
-*$py.class
+import json
+import csv
+import matplotlib.pyplot as plt
 
-# C extensions
-*.so
+def calculate_delay(R, C):
+    """Calculates propagation delay: t_pd = 0.69 * R * C"""
+    return 0.69 * R * C
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
+def calculate_dynamic_power(alpha, C, V, f):
+    """Calculates dynamic power: P_dyn = α * C * V² * f"""
+    return alpha * C * (V ** 2) * f
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+def calculate_static_power(I_leak, V):
+    """Calculates static power: P_static = I_leak * V"""
+    return I_leak * V
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+def get_scaling_factor(node_nm):
+    """
+    Returns scaling multiplier for R, C, V, and leakage based on node.
+    Smaller nodes → lower V, lower C, higher leakage
+    """
+    scaling_data = {
+        180: {"V": 1.8, "C_scale": 1.0, "R_scale": 1.0, "leak_factor": 1},
+        90:  {"V": 1.2, "C_scale": 0.6, "R_scale": 1.2, "leak_factor": 2},
+        45:  {"V": 1.0, "C_scale": 0.4, "R_scale": 1.5, "leak_factor": 4},
+        7:   {"V": 0.7, "C_scale": 0.2, "R_scale": 2.0, "leak_factor": 10}
+    }
+    return scaling_data.get(node_nm, scaling_data[180])  # default to 180nm
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
-.hypothesis/
-.pytest_cache/
-cover/
+def load_gate_library(file="gates.json"):
+    with open(file, 'r') as f:
+        return json.load(f)
 
-# Translations
-*.mo
-*.pot
+def save_to_csv(results, filename="results.csv"):
+    keys = results[0].keys()
+    with open(filename, 'w', newline='') as f:
+        writer = csv.DictWriter(f, keys)
+        writer.writeheader()
+        writer.writerows(results)
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+def plot_delay_vs_node(delay_data):
+    nodes = [item["Node (nm)"] for item in delay_data]
+    delays = [item["Delay (s)"] for item in delay_data]
 
-# Flask stuff:
-instance/
-.webassets-cache
+    plt.figure(figsize=(8, 5))
+    plt.plot(nodes, delays, marker='o', color='blue')
+    plt.title("Propagation Delay vs Technology Node")
+    plt.xlabel("Technology Node (nm)")
+    plt.ylabel("Delay (s)")
+    plt.gca().invert_xaxis()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-# Scrapy stuff:
-.scrapy
+def plot_power_vs_frequency(freq_data):
+    freqs = [item["Frequency (Hz)"] for item in freq_data]
+    powers = [item["Dynamic Power (W)"] for item in freq_data]
 
-# Sphinx documentation
-docs/_build/
+    plt.figure(figsize=(8, 5))
+    plt.plot(freqs, powers, marker='s', color='green')
+    plt.title("Dynamic Power vs Frequency")
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Dynamic Power (W)")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-# PyBuilder
-.pybuilder/
-target/
+def main():
+    # Create a dummy gates.json for demonstration
+    gate_library_data = {
+      "INV": {
+        "R": 1000,
+        "C": 2e-15,
+        "alpha": 0.5
+      },
+      "NAND2": {
+        "R": 1500,
+        "C": 3e-15,
+        "alpha": 0.4
+      },
+      "NOR2": {
+        "R": 1800,
+        "C": 3.5e-15,
+        "alpha": 0.3
+      }
+    }
+    with open("gates.json", "w") as f:
+        json.dump(gate_library_data, f)
 
-# Jupyter Notebook
-.ipynb_checkpoints
+    gates = load_gate_library()
+    print("Available gates:", ', '.join(gates.keys()))
+    gate_choice = input("Choose a gate: ").upper()
 
-# IPython
-profile_default/
-ipython_config.py
+    node = int(input("Enter technology node (e.g., 180, 90, 45, 7): "))
+    freq = float(input("Enter clock frequency (Hz): "))
+    I_leak = float(input("Enter leakage current (A): "))
 
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
+    scaling = get_scaling_factor(node)
+    gate = gates.get(gate_choice)
 
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
+    if gate:
+        R = gate["R"] * scaling["R_scale"]
+        C = gate["C"] * scaling["C_scale"]
+        alpha = gate["alpha"]
+        V = scaling["V"]
+        leak_factor = scaling["leak_factor"]
 
-# UV
-#   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#uv.lock
+        t_pd = calculate_delay(R, C)
+        P_dyn = calculate_dynamic_power(alpha, C, V, freq)
+        P_static = calculate_static_power(I_leak * leak_factor, V)
 
-# poetry
-#   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
-#   This is especially recommended for binary packages to ensure reproducibility, and is more
-#   commonly ignored for libraries.
-#   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
-#poetry.lock
-#poetry.toml
+        print(f"\n📊 Results for {gate_choice} @ {node}nm:")
+        print(f"Delay: {t_pd:.4e} s")
+        print(f"Dynamic Power: {P_dyn:.4e} W")
+        print(f"Static Power: {P_static:.4e} W")
 
-# pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
-#   pdm recommends including project-wide configuration in pdm.toml, but excluding .pdm-python.
-#   https://pdm-project.org/en/latest/usage/project/#working-with-version-control
-#pdm.lock
-#pdm.toml
-.pdm-python
-.pdm-build/
+        # Save
+        results = [{
+            "Gate": gate_choice,
+            "Node (nm)": node,
+            "Delay (s)": t_pd,
+            "Dynamic Power (W)": P_dyn,
+            "Static Power (W)": P_static
+        }]
+        save_to_csv(results)
+        print("\n✅ Results saved to results.csv")
 
-# pixi
-#   Similar to Pipfile.lock, it is generally recommended to include pixi.lock in version control.
-#pixi.lock
-#   Pixi creates a virtual environment in the .pixi directory, just like venv module creates one
-#   in the .venv directory. It is recommended not to include this directory in version control.
-.pixi
+        # Example multi-node delay plot (simulate across 180nm, 90nm, 45nm, 7nm)
+        nodes_to_test = [180, 90, 45, 7]
+        delay_plot_data = []
 
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
+        for n in nodes_to_test:
+            scale = get_scaling_factor(n)
+            Rn = gate["R"] * scale["R_scale"]
+            Cn = gate["C"] * scale["C_scale"]
+            delay = calculate_delay(Rn, Cn)
+            delay_plot_data.append({"Node (nm)": n, "Delay (s)": delay})
 
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
+        plot_delay_vs_node(delay_plot_data)
 
-# SageMath parsed files
-*.sage.py
+        # Example frequency sweep for power plot
+        freq_data = []
+        for f in [1e6, 10e6, 50e6, 100e6, 500e6]:
+            dyn_power = calculate_dynamic_power(alpha, C, V, f)
+            freq_data.append({"Frequency (Hz)": f, "Dynamic Power (W)": dyn_power})
 
-# Environments
-.env
-.envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+        plot_power_vs_frequency(freq_data)
 
-# Spyder project settings
-.spyderproject
-.spyproject
+    else:
+        print("Gate not found!")
 
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
-#  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
-#  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
-#  and can be added to the global gitignore or merged into this file.  For a more nuclear
-#  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
-
-# Abstra
-# Abstra is an AI-powered process automation framework.
-# Ignore directories containing user credentials, local state, and settings.
-# Learn more at https://abstra.io/docs
-.abstra/
-
-# Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
-#  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
-#  you could uncomment the following to ignore the entire vscode folder
-# .vscode/
-
-# Ruff stuff:
-.ruff_cache/
-
-# PyPI configuration file
-.pypirc
-
-# Cursor
-#  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
-
-# Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
+if __name__ == "__main__":
+    main()
